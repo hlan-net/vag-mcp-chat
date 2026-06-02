@@ -1,0 +1,18 @@
+apiVersion: v2
+name: vag-mcp-chat
+description: VW Vehicle MCP Agent Server — FastMCP server with OAuth 2.1 proxy for VW EU Data Act telemetry
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - mcp
+  - volkswagen
+  - vw
+  - eu-data-act
+  - vehicle-telemetry
+home: https://github.com/hlan-net/vag-mcp-chat
+sources:
+  - https://github.com/hlan-net/vag-mcp-chat
+maintainers:
+  - name: hlan-net
+    url: https://github.com/hlan-net

@@ -1,0 +1,65 @@
+name: Package & Publish Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*.*.*"
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-publish.yml"
+
+env:
+  REGISTRY: ghcr.io
+  CHART_NAME: vag-mcp-chat
+
+jobs:
+  package-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.16.x"
+
+      - name: Log in to GitHub Container Registry (OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login \
+            ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} \
+            --password-stdin
+
+      - name: Determine chart version
+        id: chart-version
+        run: |
+          # Use git tag if available, otherwise use Chart.yaml version
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(grep '^version:' helm/${{ env.CHART_NAME }}/Chart.yaml | awk '{print $2}')
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Lint Helm chart
+        run: helm lint helm/${{ env.CHART_NAME }}
+
+      - name: Package Helm chart
+        run: |
+          helm package helm/${{ env.CHART_NAME }} \
+            --version ${{ steps.chart-version.outputs.version }} \
+            --destination /tmp/helm-pkg
+
+      - name: Push Helm chart to GHCR (OCI)
+        run: |
+          helm push \
+            /tmp/helm-pkg/${{ env.CHART_NAME }}-${{ steps.chart-version.outputs.version }}.tgz \
+            oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
