@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     # Polling
     vw_data_poll_interval_seconds: int = 840
 
-    # OpenAI
-    openai_api_key: str
+    # OpenAI — used by the agent (client), not required for the MCP server itself
+    openai_api_key: str = ""
     openai_model: str = "gpt-4o"
 
     # Agent
