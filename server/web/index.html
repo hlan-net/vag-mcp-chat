@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VW Vehicle Agent</title>
+  <style>
+    :root {
+      --vw-navy: #001e50;
+      --vw-blue: #00437a;
+      --vw-cyan: #00b0f0;
+      --vw-light: #dfe4e8;
+      --bg: #f2f4f7;
+      --surface: #ffffff;
+      --border: #e0e4ea;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --user-bg: #001e50;
+      --user-fg: #ffffff;
+      --bot-bg: #ffffff;
+      --bot-fg: #1a1a2e;
+      --tool-bg: #eff6ff;
+      --tool-border: #bfdbfe;
+      --tool-fg: #1d4ed8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .app {
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--surface);
+      box-shadow: 0 0 40px rgba(0,0,0,.08);
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--vw-navy);
+      color: #fff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .vw-logo {
+      width: 42px;
+      height: 42px;
+      background: rgba(255,255,255,.12);
+      border: 2px solid rgba(255,255,255,.25);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .vw-logo svg { width: 26px; height: 26px; fill: white; }
+
+    .header-text h1 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+
+    .header-text p {
+      font-size: 12px;
+      opacity: .65;
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.2);
+      color: white;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .icon-btn:hover { background: rgba(255,255,255,.2); }
+
+    /* ── Messages ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    /* Welcome */
+    .welcome {
+      text-align: center;
+      padding: 24px 0 8px;
+    }
+
+    .welcome .car-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .welcome h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--vw-navy);
+      margin-bottom: 6px;
+    }
+
+    .welcome p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      max-width: 360px;
+      margin: 0 auto 20px;
+    }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .suggestion {
+      padding: 8px 16px;
+      border: 1.5px solid var(--vw-navy);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--vw-navy);
+      cursor: pointer;
+      background: white;
+      transition: all .15s;
+      font-weight: 500;
+    }
+
+    .suggestion:hover {
+      background: var(--vw-navy);
+      color: white;
+    }
+
+    /* Message rows */
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .msg-row.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .avatar.bot {
+      background: var(--vw-navy);
+      color: white;
+      font-size: 11px;
+    }
+
+    .avatar.user {
+      background: var(--vw-cyan);
+      color: var(--vw-navy);
+    }
+
+    .bubble {
+      max-width: calc(100% - 80px);
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .user .bubble {
+      background: var(--user-bg);
+      color: var(--user-fg);
+      border-bottom-right-radius: 4px;
+    }
+
+    .bot .bubble {
+      background: var(--bot-bg);
+      color: var(--bot-fg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+
+    /* Blinking cursor during streaming */
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 14px;
+      background: var(--vw-navy);
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Tool call status pill */
+    .tool-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      background: var(--tool-bg);
+      border: 1px solid var(--tool-border);
+      color: var(--tool-fg);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      margin: 4px 0;
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--tool-border);
+      border-top-color: var(--vw-cyan);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .tool-pill.done .spinner {
+      animation: none;
+      border-color: #86efac;
+      border-top-color: #22c55e;
+    }
+
+    /* Typing dots (initial loading) */
+    .typing-dots span {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: bounce .9s ease-in-out infinite;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: .15s; }
+    .typing-dots span:nth-child(3) { animation-delay: .3s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Error message */
+    .error-bubble {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    /* ── Input area ── */
+    .input-area {
+      padding: 14px 16px;
+      background: white;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    #msg-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 24px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.4;
+      transition: border-color .15s;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    #msg-input:focus { border-color: var(--vw-cyan); background: white; }
+
+    #msg-input::placeholder { color: var(--text-muted); }
+
+    #send-btn {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      background: var(--vw-navy);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity .15s, transform .1s;
+    }
+
+    #send-btn:hover:not(:disabled) { opacity: .85; transform: scale(1.05); }
+    #send-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    #send-btn svg { width: 18px; height: 18px; fill: white; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="vw-logo">
+      <!-- VW-style circular icon -->
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="48" fill="none" stroke="white" stroke-width="4"/>
+        <!-- simplified "VW" letterform -->
+        <path d="M28 32 L38 68 L50 44 L62 68 L72 32 L65 32 L56 58 L50 42 L44 58 L35 32 Z" fill="white"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>VW Vehicle Agent</h1>
+      <p>Powered by EU Data Act telemetry</p>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="clearChat()" title="New conversation">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="white">
+          <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM5 8V5.5a.5.5 0 0 1 1 0V8h2.5a.5.5 0 0 1 0 1H6v2.5a.5.5 0 0 1-1 0V9H2.5a.5.5 0 0 1 0-1H5z"/>
+        </svg>
+        New chat
+      </button>
+    </div>
+  </header>
+
+  <div id="messages">
+    <div class="welcome" id="welcome">
+      <div class="car-icon">🚗</div>
+      <h2>Hello! I'm your VW assistant.</h2>
+      <p>Ask me about your vehicle's battery, location, climate, or charging status.</p>
+      <div class="suggestions">
+        <button class="suggestion" onclick="sendSuggestion(this)">What's my battery level?</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">Where is my car?</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">Is it charging?</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">Full vehicle status</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">What's the cabin temperature?</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <textarea id="msg-input" placeholder="Ask about your car…" rows="1" maxlength="1000"></textarea>
+    <button id="send-btn" onclick="sendMessage()" disabled>
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // ── Session ────────────────────────────────────────────────────────────────
+  let sessionId = sessionStorage.getItem('vag_session') || crypto.randomUUID();
+  sessionStorage.setItem('vag_session', sessionId);
+
+  // ── DOM helpers ───────────────────────────────────────────────────────────
+  const messagesEl = document.getElementById('messages');
+  const inputEl    = document.getElementById('msg-input');
+  const sendBtn    = document.getElementById('send-btn');
+  let   streaming  = false;
+
+  function scrollBottom() {
+    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' });
+  }
+
+  function hideWelcome() {
+    const w = document.getElementById('welcome');
+    if (w) w.remove();
+  }
+
+  // ── Append a user bubble ───────────────────────────────────────────────────
+  function appendUserMessage(text) {
+    hideWelcome();
+    const row = document.createElement('div');
+    row.className = 'msg-row user';
+    row.innerHTML = `
+      <div class="avatar user">You</div>
+      <div class="bubble">${escHtml(text)}</div>
+    `;
+    messagesEl.appendChild(row);
+    scrollBottom();
+  }
+
+  // ── Create a bot bubble (returns the text container + tool container) ──────
+  function createBotBubble() {
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+
+    const toolContainer = document.createElement('div');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
+
+    row.innerHTML = `<div class="avatar bot">VW</div>`;
+    const inner = document.createElement('div');
+    inner.style.display = 'flex';
+    inner.style.flexDirection = 'column';
+    inner.style.gap = '6px';
+    inner.style.maxWidth = 'calc(100% - 80px)';
+    inner.appendChild(toolContainer);
+    inner.appendChild(bubble);
+    row.appendChild(inner);
+
+    messagesEl.appendChild(row);
+    scrollBottom();
+    return { bubble, toolContainer };
+  }
+
+  // ── Add a tool status pill ────────────────────────────────────────────────
+  function addToolPill(container, label) {
+    const pill = document.createElement('div');
+    pill.className = 'tool-pill';
+    pill.innerHTML = `<div class="spinner"></div><span>${escHtml(label)}</span>`;
+    container.appendChild(pill);
+    scrollBottom();
+    return pill;
+  }
+
+  function completePill(pill) {
+    pill.classList.add('done');
+    pill.querySelector('.spinner').style.borderColor = '#86efac';
+    pill.querySelector('.spinner').style.borderTopColor = '#22c55e';
+    pill.querySelector('.spinner').style.animation = 'none';
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Send a message ────────────────────────────────────────────────────────
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || streaming) return;
+
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    setStreaming(true);
+
+    appendUserMessage(text);
+    const { bubble, toolContainer } = createBotBubble();
+
+    let textStarted = false;
+    let currentText = '';
+    let activePill  = null;
+
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, session_id: sessionId }),
+      });
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE lines
+        let nl;
+        while ((nl = buffer.indexOf('\n\n')) !== -1) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 2);
+
+          if (!line.startsWith('data: ')) continue;
+          let evt;
+          try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (evt.type === 'text') {
+            if (!textStarted) {
+              textStarted = true;
+              bubble.innerHTML = '';  // remove typing dots
+              if (activePill) completePill(activePill);
+            }
+            currentText += evt.content;
+            bubble.textContent = currentText;
+            bubble.appendChild(Object.assign(document.createElement('span'), { className: 'cursor' }));
+            scrollBottom();
+
+          } else if (evt.type === 'tool') {
+            if (activePill) completePill(activePill);
+            activePill = addToolPill(toolContainer, evt.label);
+
+          } else if (evt.type === 'done') {
+            if (activePill) completePill(activePill);
+            // Remove cursor
+            const cursor = bubble.querySelector('.cursor');
+            if (cursor) cursor.remove();
+            // Re-assign session id if server generated one
+            if (evt.session_id) {
+              sessionId = evt.session_id;
+              sessionStorage.setItem('vag_session', sessionId);
+            }
+
+          } else if (evt.type === 'error') {
+            bubble.innerHTML = `<div class="error-bubble">⚠️ ${escHtml(evt.message)}</div>`;
+          }
+        }
+      }
+
+    } catch (err) {
+      bubble.innerHTML = `<div class="error-bubble">⚠️ ${escHtml(err.message)}</div>`;
+    } finally {
+      // Ensure cursor is removed
+      const cursor = bubble.querySelector('.cursor');
+      if (cursor) cursor.remove();
+      // Ensure typing dots are gone
+      const dots = bubble.querySelector('.typing-dots');
+      if (dots && !currentText) {
+        bubble.innerHTML = '<div class="error-bubble">⚠️ No response received.</div>';
+      }
+      setStreaming(false);
+      inputEl.focus();
+    }
+  }
+
+  function sendSuggestion(btn) {
+    inputEl.value = btn.textContent;
+    sendMessage();
+  }
+
+  function clearChat() {
+    fetch('/api/chat/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    }).catch(() => {});
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem('vag_session', sessionId);
+    messagesEl.innerHTML = `
+      <div class="welcome" id="welcome">
+        <div class="car-icon">🚗</div>
+        <h2>Hello! I'm your VW assistant.</h2>
+        <p>Ask me about your vehicle's battery, location, climate, or charging status.</p>
+        <div class="suggestions">
+          <button class="suggestion" onclick="sendSuggestion(this)">What's my battery level?</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">Where is my car?</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">Is it charging?</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">Full vehicle status</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">What's the cabin temperature?</button>
+        </div>
+      </div>`;
+  }
+
+  function setStreaming(on) {
+    streaming = on;
+    sendBtn.disabled = on;
+    inputEl.disabled = on;
+  }
+
+  // ── Input: enable send button & auto-resize ────────────────────────────────
+  inputEl.addEventListener('input', () => {
+    sendBtn.disabled = streaming || !inputEl.value.trim();
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+</script>
+</body>
+</html>

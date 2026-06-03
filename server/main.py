@@ -15,11 +15,12 @@ import logging
 from contextlib import asynccontextmanager
 
 from starlette.applications import Starlette
-from starlette.routing import Mount
+from starlette.routing import Mount, Route
 
 from server.mcp_app import mcp
 from server.settings import settings
 from server.state import data_poller, token_store
+from server.web.chat import chat_endpoint, clear_session_endpoint, index_handler
 
 # Tool modules self-register via @mcp.tool() when imported.
 import server.tools.battery  # noqa: F401
@@ -59,10 +60,16 @@ async def _lifespan(_app):
 
 
 # Wrap FastMCP in a Starlette app that owns the combined lifespan.
-# All HTTP requests are forwarded to the FastMCP ASGI app.
+# Chat UI routes are registered first so they take priority over the
+# FastMCP catch-all mount at "/".
 app = Starlette(
     lifespan=_lifespan,
-    routes=[Mount("/", app=_mcp_asgi)],
+    routes=[
+        Route("/", index_handler),
+        Route("/api/chat", chat_endpoint, methods=["POST"]),
+        Route("/api/chat/clear", clear_session_endpoint, methods=["POST"]),
+        Mount("/", app=_mcp_asgi),
+    ],
 )
 
 
