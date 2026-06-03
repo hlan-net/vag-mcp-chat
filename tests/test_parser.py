@@ -14,7 +14,7 @@ def _make_zip(files: dict[str, str | dict]) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         for name, content in files.items():
-            if isinstance(content, dict):
+            if not isinstance(content, str):
                 content = json.dumps(content)
             zf.writestr(name, content)
     return buf.getvalue()
