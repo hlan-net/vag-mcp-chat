@@ -2,18 +2,18 @@
 # ── Build stage ───────────────────────────────────────────────────────────────
 FROM python:3.12-slim AS builder
 
-WORKDIR /build
+# Build directly at /app so venv shebang paths match the runtime location
+WORKDIR /app
 
-# Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml .
 COPY server/ server/
 COPY agent/ agent/
 
-# Install all dependencies into /build/.venv
-RUN uv venv .venv && \
-    uv pip install --python .venv/bin/python -e "."
+# Install all dependencies into /app/.venv
+RUN uv venv /app/.venv && \
+    uv pip install --python /app/.venv/bin/python -e "."
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
@@ -28,11 +28,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Copy virtual environment and source from builder
-COPY --from=builder /build/.venv .venv
-COPY --from=builder /build/server server/
-COPY --from=builder /build/agent agent/
-COPY --from=builder /build/pyproject.toml .
+# Copy virtual environment and source from builder (paths match — both /app)
+COPY --from=builder /app/.venv .venv
+COPY --from=builder /app/server server/
+COPY --from=builder /app/agent agent/
+COPY --from=builder /app/pyproject.toml .
 
 # Create non-root user and data directory for encrypted token storage
 RUN useradd --uid 1001 --no-create-home --shell /bin/false appuser && \
@@ -47,4 +47,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/.well-known/oauth-protected-resource')" || exit 1
 
-CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use python -m uvicorn to avoid relying on the script's shebang line
+CMD ["python", "-m", "uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
