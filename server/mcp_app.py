@@ -4,6 +4,8 @@ Kept in its own module so tool files can import `mcp` without circular
 dependencies (server/main.py imports tools, tools import mcp_app).
 """
 
+from pathlib import Path
+
 from fastmcp import FastMCP
 from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
@@ -30,6 +32,10 @@ _auth = OAuthProxy(
     base_url=settings.mcp_base_url,
     jwt_signing_key=settings.mcp_jwt_secret,
     token_verifier=_token_verifier,
+    # Default storage_dir resolves to /home/appuser which doesn't exist
+    # (container user created with --no-create-home). Use /app/data instead,
+    # which is created and chowned to appuser in the Dockerfile.
+    storage_dir=Path("/app/data/oauth"),
 )
 
 mcp = FastMCP("VW Vehicle Agent", auth=_auth)
