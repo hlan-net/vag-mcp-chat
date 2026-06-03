@@ -4,11 +4,15 @@ Kept in its own module so tool files can import `mcp` without circular
 dependencies (server/main.py imports tools, tools import mcp_app).
 """
 
+import hashlib
 from pathlib import Path
 
+from cryptography.fernet import Fernet
 from fastmcp import FastMCP
 from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
+from key_value.aio.stores.filetree import FileTreeStore
+from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 
 from server.settings import settings
 
@@ -18,10 +22,25 @@ from server.settings import settings
 # The raw VW upstream tokens are stored server-side (see server/auth/token_store.py).
 
 _token_verifier = JWTVerifier(
-    jwks_uri=f"{settings.mcp_base_url}/oauth/jwks",
+    # OAuthProxy signs with jwt_signing_key using HS256.
+    # For HS256 the "public key" is the same shared secret.
+    # No audience restriction — DCR clients have dynamic IDs.
+    public_key=settings.mcp_jwt_secret,
+    algorithm="HS256",
     issuer=settings.mcp_base_url,
-    # FastMCP uses the client_id (VW app's client_id) as the JWT audience.
-    audience=settings.vw_oidc_client_id,
+)
+
+# Build an explicit client_storage so FastMCP writes to /app/data/oauth
+# instead of defaulting to ~/.fastmcp (which doesn't exist in the container
+# because the runtime user was created with --no-create-home).
+_storage_key = hashlib.sha256(settings.mcp_jwt_secret.encode()).digest()[:32]
+_fernet_key = Fernet.generate_key()  # ephemeral per process; tokens refresh via upstream
+_oauth_storage_dir = Path(settings.data_dir) / "oauth"
+_oauth_storage_dir.mkdir(parents=True, exist_ok=True)
+
+_client_storage = FernetEncryptionWrapper(
+    key_value=FileTreeStore(data_directory=_oauth_storage_dir),
+    fernet=Fernet(key=_fernet_key),
 )
 
 _auth = OAuthProxy(
@@ -32,10 +51,7 @@ _auth = OAuthProxy(
     base_url=settings.mcp_base_url,
     jwt_signing_key=settings.mcp_jwt_secret,
     token_verifier=_token_verifier,
-    # Default storage_dir resolves to /home/appuser which doesn't exist
-    # (container user created with --no-create-home). Use /app/data instead,
-    # which is created and chowned to appuser in the Dockerfile.
-    storage_dir=Path("/app/data/oauth"),
+    client_storage=_client_storage,
 )
 
 mcp = FastMCP("VW Vehicle Agent", auth=_auth)

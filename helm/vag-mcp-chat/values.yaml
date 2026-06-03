@@ -83,7 +83,7 @@ securityContext:
 # ── Probes ────────────────────────────────────────────────────────────────────
 livenessProbe:
   httpGet:
-    path: /.well-known/oauth-protected-resource
+    path: /.well-known/oauth-authorization-server
     port: http
   initialDelaySeconds: 15
   periodSeconds: 30
@@ -91,7 +91,7 @@ livenessProbe:
 
 readinessProbe:
   httpGet:
-    path: /.well-known/oauth-protected-resource
+    path: /.well-known/oauth-authorization-server
     port: http
   initialDelaySeconds: 10
   periodSeconds: 10

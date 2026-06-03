@@ -45,7 +45,7 @@ EXPOSE 8000
 
 # Health check against FastMCP's protected resource metadata endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/.well-known/oauth-protected-resource')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/.well-known/oauth-authorization-server')" || exit 1
 
 # Use python -m uvicorn to avoid relying on the script's shebang line
 CMD ["python", "-m", "uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
