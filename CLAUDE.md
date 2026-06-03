@@ -32,7 +32,7 @@ python -m agent.main --server http://localhost:8000 --vin WVWXXX...
 
 ### Two-component system
 
-**Server** (`server/`) — FastMCP 3.3.1 server that acts as both OAuth 2.1 Authorization Server and Resource Server. Deployed in k8s at `vag-chat.k3s.hlan.net`.
+**Server** (`server/`) — FastMCP 3.3.1 server that acts as both OAuth 2.1 Authorization Server and Resource Server. Runs on port 8000; deploy behind a reverse proxy or Traefik ingress.
 
 **Agent** (`agent/`) — CLI client that connects to the server via MCP protocol using FastMCP's built-in OAuth 2.1 + PKCE S256 client. Not deployed — runs locally.
 
@@ -64,7 +64,7 @@ Standard VW mobile endpoints return HTTP 401 (cryptographic attestation). All ve
 
 The Dockerfile builds the venv at `/app/.venv` in the builder stage (not `/build`) so that absolute shebang paths survive the multi-stage copy. CMD uses `python -m uvicorn` rather than the `uvicorn` script to avoid shebang issues entirely.
 
-The GHCR package (`ghcr.io/hlan-net/vag-mcp-chat`) is **private** — the k8s namespace uses the `ghcr-pull-secret` imagePullSecret. To deploy a new version: push to `master`, CI builds and pushes `:master` + `:sha-<hash>`, then `helm upgrade` with the new SHA tag (avoid `:master` in Helm — the node caches it and `IfNotPresent` won't pull updates).
+The GHCR package (`ghcr.io/hlan-net/vag-mcp-chat`) is **private** — the k8s namespace needs an `imagePullSecret` with GHCR credentials. To deploy a new version: push to `main`, CI builds and pushes `:main` + `:sha-<hash>`, then `helm upgrade` with the new SHA tag (avoid `:main` in Helm — the node caches it and `IfNotPresent` won't pull updates).
 
 Helm release: `vag-mcp-chat` in namespace `vag-mcp-chat`. Upgrade:
 ```bash
